@@ -9,5 +9,5 @@ COPY main.py /main.py
 # Set working directory
 WORKDIR /
 
-# Run mitmproxy with the specified configurations
-CMD ["mitmproxy", "--set", "block_global=false", "--listen-port", "8080", "-s", "/main.py"]
+# Run mitmdump with the specified configurations
+CMD ["mitmdump", "--set", "block_global=false", "--listen-port", "8080", "-s", "/main.py"]
