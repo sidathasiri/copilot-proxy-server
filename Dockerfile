@@ -6,6 +6,9 @@ COPY certs /home/mitmproxy/.mitmproxy
 # Copy your mitmproxy script if you have one
 COPY main.py /main.py
 
+# Install boto3 using pip
+RUN pip install boto3
+
 # Set working directory
 WORKDIR /
 
