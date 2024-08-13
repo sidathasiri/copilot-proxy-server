@@ -1,29 +1,22 @@
 from mitmproxy import http
 import json
-import os
+import boto3
 
-# Get the directory where the script is located
-script_dir = os.path.dirname(os.path.abspath(__file__))
+queue_url = "https://sqs.us-east-1.amazonaws.com/826406658508/copilot-events"
 
-# Define the file path for the JSON log file
-log_file_path = os.path.join(script_dir, "telemetry_log.json")
+def send_message(message_body):
+    # Create SQS client
+    sqs = boto3.client('sqs')
 
-def log_request_payload(name, machineId) -> None:
-    """Append the request payload to a single JSON file with separation."""
-    # Prepare the log entry with a timestamp
-    log_entry = {
-        "name": name,
-        "machineId": machineId
-    }
-    
-    # Append the log entry to the file
-    with open(log_file_path, "a") as log_file:
-        log_file.write(json.dumps(log_entry, indent=4))
-        log_file.write(",\n")  # Add a comma and newline for separation
+    # Send message to SQS queue
+    sqs.send_message(
+        QueueUrl=queue_url,
+        MessageBody=json.dumps(message_body)  # Convert your message to a JSON string
+    )
 
 def request(flow: http.HTTPFlow) -> None:
     # Filter requests to the GitHub Copilot telemetry service endpoint
-    if "copilot-telemetry-service.githubusercontent.com/telemetry" in flow.request.pretty_url:
+    if("copilot-telemetry-service.githubusercontent.com/telemetry" in flow.request.pretty_url):
         try:
             # Parse the request body as JSON (if possible)
             request_body = flow.request.json()
@@ -34,17 +27,13 @@ def request(flow: http.HTTPFlow) -> None:
                 name = item.get("data").get("baseData").get("name")
                 # check if the name attribute present in the item and whether 
                 if(name and name == "copilot/ghostText.accepted"):
-                    machineId = item.get("data").get("baseData").get("properties").get("client_machineid")
-                    log_request_payload(name, machineId)
-        
-            
+                    machine_id = item.get("data").get("baseData").get("properties").get("client_machineid")
+                    send_message({
+                        "machineId": machine_id,
+                        "eventName": name
+                    })
+        except Exception as e:
+            print("Error occurred in handling the event:", e)
 
-
-        except ValueError:
-            # If the body is not JSON, store it as plain text
-            request_body = {"raw_text": flow.request.get_text()}
-            # Optional: Log raw text if desired, but generally you might ignore non-JSON payloads
-            print("Non-JSON payload:", request_body)
-    
     # Allow other requests to proceed
     flow.resume()
