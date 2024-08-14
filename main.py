@@ -28,9 +28,11 @@ def request(flow: http.HTTPFlow) -> None:
                 # check if the name attribute present in the item and whether 
                 if(name and name == "copilot/ghostText.accepted"):
                     machine_id = item.get("data").get("baseData").get("properties").get("client_machineid")
+                    time = item.get("time")
                     send_message({
                         "machineId": machine_id,
-                        "eventName": name
+                        "eventName": name,
+                        "time": time
                     })
         except Exception as e:
             print("Error occurred in handling the event:", e)
