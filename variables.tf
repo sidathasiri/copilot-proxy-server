@@ -33,3 +33,18 @@ variable "max_count" {
 variable "min_count" {
   default = 2
 }
+
+variable "vpc_id" {
+  description = "The VPC ID for ECS"
+  default = "vpc-ca3604b0"
+}
+
+variable "subnet_ids" {
+  description = "List of subnet IDs for ECS"
+  type        = list(string)
+  default     = [
+    "subnet-8601b7cb",
+    "subnet-7a4fac25",
+    "subnet-84f214e2"
+  ]
+}

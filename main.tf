@@ -114,6 +114,103 @@ resource "aws_ecs_task_definition" "copilot_proxy_task" {
   }])
 }
 
+# Create a Security Group
+resource "aws_security_group" "copilot_proxy_sg" {
+  name   = "copilot-proxy-sg"
+  vpc_id = var.vpc_id
+
+  ingress {
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+# Create an ECS Service
+resource "aws_ecs_service" "copilot_proxy_service" {
+  name            = "copilot-proxy-service"
+  cluster         = aws_ecs_cluster.copilot_proxy_cluster.id
+  task_definition = aws_ecs_task_definition.copilot_proxy_task.arn
+  desired_count   = 2
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    subnets          = var.subnet_ids
+    security_groups  = [aws_security_group.copilot_proxy_sg.id]
+    assign_public_ip = true
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.copilot_proxy_target_group.arn
+    container_name   = "copilot_proxy_container"
+    container_port   = 8080
+  }
+
+  depends_on = [aws_lb_listener.front_end]
+}
+
+# Create a NLB
+resource "aws_lb" "copilot_proxy_nlb" {
+  name               = "copilot-proxy-nlb"
+  internal           = false
+  load_balancer_type = "network"
+  security_groups    = [aws_security_group.copilot_proxy_sg.id]
+  subnets            = var.subnet_ids
+
+  enable_deletion_protection = false
+  enable_cross_zone_load_balancing = true
+
+  tags = {
+    Name = "copilot-proxy-nlb"
+  }
+}
+
+
+# Create a Listener for the ALB
+resource "aws_lb_listener" "front_end" {
+  load_balancer_arn = aws_lb.copilot_proxy_nlb.arn
+  port              = 80
+  protocol          = "TCP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.copilot_proxy_target_group.arn
+  }
+}
+
+
+# Create a Target Group for the ALB
+resource "aws_lb_target_group" "copilot_proxy_target_group" {
+  name     = "copilot-proxy-tg"
+  port     = 8080
+  protocol = "TCP"
+  vpc_id   = var.vpc_id
+  target_type = "ip"
+
+  health_check {
+    protocol            = "TCP"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+  }
+}
+
 # Create an SQS queue
 resource "aws_sqs_queue" "copilot_events_queue" {
   name = "copilot-events"
