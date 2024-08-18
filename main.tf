@@ -211,6 +211,83 @@ resource "aws_lb_target_group" "copilot_proxy_target_group" {
   }
 }
 
+## ECS service auto-scaling
+resource "aws_appautoscaling_target" "copilot_proxy_scaling_target" {
+  max_capacity       = 7
+  min_capacity       = 2
+  resource_id        = "service/${aws_ecs_cluster.copilot_proxy_cluster.id}/${aws_ecs_service.copilot_proxy_service.name}"
+  scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace  = "ecs"
+}
+
+resource "aws_appautoscaling_policy" "copilot_proxy_scaling_policy_up" {
+  name               = "copilot-proxy-scale-up"
+  scalable_dimension = aws_appautoscaling_target.copilot_proxy_scaling_target.scalable_dimension
+  resource_id        = aws_appautoscaling_target.copilot_proxy_scaling_target.resource_id
+  service_namespace  = aws_appautoscaling_target.copilot_proxy_scaling_target.service_namespace
+  policy_type        = "StepScaling"
+
+  step_scaling_policy_configuration {
+    adjustment_type         = "ChangeInCapacity"
+    cooldown                = 60
+
+    step_adjustment {
+      scaling_adjustment = 1
+      metric_interval_lower_bound = 0
+    }
+  }
+}
+
+resource "aws_appautoscaling_policy" "copilot_proxy_scaling_policy_down" {
+  name               = "copilot-proxy-scale-down"
+  scalable_dimension = aws_appautoscaling_target.copilot_proxy_scaling_target.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.copilot_proxy_scaling_target.service_namespace
+  resource_id        = aws_appautoscaling_target.copilot_proxy_scaling_target.resource_id
+  policy_type        = "StepScaling"
+
+  step_scaling_policy_configuration {
+    adjustment_type         = "ChangeInCapacity"
+    cooldown                = 60
+
+    step_adjustment {
+      scaling_adjustment = -1
+      metric_interval_upper_bound = 0
+    }
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "copilot_proxy_high_cpu" {
+  alarm_name                = "copilot-proxy-high-cpu"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "CPUUtilization"
+  namespace                 = "AWS/ECS"
+  period                    = "60"
+  statistic                 = "Average"
+  threshold                 = "75"
+  alarm_actions             = [aws_appautoscaling_policy.copilot_proxy_scaling_policy_up.arn]
+  dimensions = {
+    ClusterName = aws_ecs_cluster.copilot_proxy_cluster.id
+    ServiceName = aws_ecs_service.copilot_proxy_service.name
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "copilot_proxy_low_cpu" {
+  alarm_name                = "copilot-proxy-low-cpu"
+  comparison_operator       = "LessThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "CPUUtilization"
+  namespace                 = "AWS/ECS"
+  period                    = "60"
+  statistic                 = "Average"
+  threshold                 = "20"
+  alarm_actions             = [aws_appautoscaling_policy.copilot_proxy_scaling_policy_down.arn]
+  dimensions = {
+    ClusterName = aws_ecs_cluster.copilot_proxy_cluster.id
+    ServiceName = aws_ecs_service.copilot_proxy_service.name
+  }
+}
+
 # Create an SQS queue
 resource "aws_sqs_queue" "copilot_events_queue" {
   name = "copilot-events"
