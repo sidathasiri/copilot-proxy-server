@@ -267,7 +267,7 @@ resource "aws_cloudwatch_metric_alarm" "copilot_proxy_high_cpu" {
   threshold                 = "75"
   alarm_actions             = [aws_appautoscaling_policy.copilot_proxy_scaling_policy_up.arn]
   dimensions = {
-    ClusterName = aws_ecs_cluster.copilot_proxy_cluster.id
+    ClusterName = aws_ecs_cluster.copilot_proxy_cluster.name
     ServiceName = aws_ecs_service.copilot_proxy_service.name
   }
 }
@@ -283,7 +283,7 @@ resource "aws_cloudwatch_metric_alarm" "copilot_proxy_low_cpu" {
   threshold                 = "20"
   alarm_actions             = [aws_appautoscaling_policy.copilot_proxy_scaling_policy_down.arn]
   dimensions = {
-    ClusterName = aws_ecs_cluster.copilot_proxy_cluster.id
+    ClusterName = aws_ecs_cluster.copilot_proxy_cluster.name
     ServiceName = aws_ecs_service.copilot_proxy_service.name
   }
 }
