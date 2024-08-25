@@ -1,62 +1,80 @@
-# copilot-proxy-server
+# Copilot Proxy Server
 
+This project provides a proxy service implementation for GitHub Copilot. The proxy intercepts requests sent by developers (via their IDE) to GitHub servers, allowing you to:
 
+- Track GitHub Copilot usage through telemetry requests.
+- Inspect requests to enforce security practices.
+- Monitor network usage.
 
-This is a proxy service implementation for GitHub Copilot. This proxy helps you to intercept the requests sent by the developer (IDE) to GitHub servers so that you can,
-- track the GitHub Copilot usage via the telemetry requests
-- inspect requests and enforce security practices
-- monitor the network usage
-
-Below is the high-level solution architecture
+Below is a high-level overview of the solution architecture:
 
 ![Proxy Solution Image](proxy_solution.png)
 
-You can add your custom implementation to intercept requests and perform any action on them using Python as mentioned below. 
+You can customize the proxy to intercept requests and execute specific actions using Python, as described below. The proxy server can be run as a Docker container.
 
-The entire proxy server can be run as a Docker container.
-
-> Read more about the network settings for Copilot Proxy from [here](https://docs.github.com/en/copilot/managing-copilot/configure-personal-settings/configuring-network-settings-for-github-copilot?tool=vscode)
+> Read more about configuring network settings for GitHub Copilot [here](https://docs.github.com/en/copilot/managing-copilot/configure-personal-settings/configuring-network-settings-for-github-copilot?tool=vscode).
 
 ## Solution Overview
 
-This proxy service has been implemented using [mitmproxy](https://mitmproxy.org/). To use the proxy server, you need to install the GitHub Copilot extension and configure it first. By default, all Copilot related requests are pointed to the GitHub servers directly. To use the proxy, you need to update the `proxy_url` configuration to point to your proxy according to the IDE you use. See the guide [here.](https://docs.github.com/en/copilot/managing-copilot/configure-personal-settings/configuring-network-settings-for-github-copilot?tool=vscode)
+This proxy service is built using [mitmproxy](https://mitmproxy.org/). To use the proxy, first install the GitHub Copilot extension and configure it. By default, all Copilot-related requests are directed to GitHub servers. To use this proxy, update the `proxy_url` configuration to point to your proxy server, based on the IDE you are using. Refer to the guide [here](https://docs.github.com/en/copilot/managing-copilot/configure-personal-settings/configuring-network-settings-for-github-copilot?tool=vscode).
 
-This setup only gives you the ability the see the requests but not the actual payload of requests and responses due to SSL protection. To inspect request/response payloads, you need to use a custom certificate. By default, when you install `mitmproxy`, it saves the default certificates in the `~/.mitmproxy` folder meaning that it will use those certificates.
+By default, this setup allows you to see the requests but not their actual payloads due to SSL encryption. To inspect the payloads of requests and responses, you need to use a custom certificate. When you install `mitmproxy`, it saves default certificates in the `~/.mitmproxy` folder, which are used for SSL interception.
 
 ![mitmproxy certificates](certs.png)
 
-You need to ensure that the corresponding certificate (`mitmproxy-ca-cert.cer`/`mitmproxy-ca-cert.pem`) has been installed on the developers device so that the proxy is considered as a trusted entity.
+Make sure that the corresponding certificate (`mitmproxy-ca-cert.cer`/`mitmproxy-ca-cert.pem`) is installed on the developer's device to establish the proxy as a trusted entity.
+
+- MAC: `sudo security add-trusted-cert -d -p ssl -p basic -k /Library/Keychains/System.keychain mitmproxy-ca-cert.pem`
+- Windows: `certutil -addstore root mitmproxy-ca-cert.cer`
 
 ## Sample Implementation
 
-The sample implementation in this repository provides below features,
-- Docker implementation
-- Terraform infrastructure code to deploy the proxy on AWS ECS with auto-scaling
-- Sample implementation to intercept requests and push Copilot accepted suggestions (`copilot/ghostText.accepted`) to a SQS queue
+This repository provides the following sample features:
+
+- Docker-based implementation.
+- Terraform infrastructure code to deploy the proxy on AWS ECS with auto-scaling.
+- Example implementation for intercepting requests and pushing accepted Copilot suggestions (`copilot/ghostText.accepted`) to an SQS queue.
 
 ## Prerequisites
 
-- AWS account and access to make deployments (ex. ECS/SQS)
-- Terraform
-- Docker
+- AWS account with necessary access for deployments (e.g., ECS, SQS).
+- Terraform.
+- Docker.
 
-## How to Setup
+## Setup Instructions
 
-- Create a directory called `certs` and add the certificates to be used in each run. You can first install `mitmproxy` locally and copy the created certificates in `~/.mitmproxy` folder to here. This is important to ensure all proxy instances are using the same certificates to validate requests.
-- Customize the `main.py` file to implement your logic to intercept and act to Copilot events. The sample implement will push accepted suggestion events to a SQS queue. Update the `queue_url` to point to the queue you want to send events.
-- Build the docker image with `docker build -t copilot-proxy-server --platform linux/amd64 .` (Update the platform parameter according to your use case)
-- Run the docker image. Enable port `8080` since mitmproxy uses 8080 by default. Ensure to set the AWS credentials as env variables so that it can access SQS to put events.
+1. **Certificate Setup**: 
+    - Create a `certs` directory and add the certificates to be used. You can install `mitmproxy` locally and copy the certificates from the `~/.mitmproxy` folder into this directory. This ensures that all proxy instances use the same certificates for SSL validation.
+  
+2. **Custom Logic Implementation**:
+    - Customize the `main.py` file to implement your logic for intercepting Copilot events. The sample implementation pushes accepted suggestion events to an SQS queue. Update the `queue_url` to point to your desired SQS queue.
 
-```
-docker run -it --rm -p 8080:8080 \
--e AWS_ACCESS_KEY_ID=<key_id> \
--e AWS_SECRET_ACCESS_KEY=<secret_key> \
--e AWS_DEFAULT_REGION=us-east-1 \
-copilot-proxy-server
-```
+3. **Docker Image**:
+    - Build the Docker image with:
+      ```bash
+      docker build -t copilot-proxy-server --platform linux/amd64 .
+      ```
+      (Modify the platform parameter as needed.)
 
-- Run `terraform apply -target=aws_ecr_repository.copilot_proxy_repo` to only create the ECR repo first.
-- Push the image to the ECR (Use the ECR guidelines to tag and push the image)
-- Run `terraform apply` to create rest of the resources
-- You can access the proxy by the domain of the created NLB instance.
-- Use that url to update the `proxy_url` in your IDE to use the proxy
+4. **Running the Docker Image**:
+    - Run the Docker container and expose port `8080` (the default port for mitmproxy). Set AWS credentials as environment variables to allow access to SQS for event publishing:
+      ```bash
+      docker run -it --rm -p 8080:8080 \
+      -e AWS_ACCESS_KEY_ID=<your_access_key_id> \
+      -e AWS_SECRET_ACCESS_KEY=<your_secret_access_key> \
+      -e AWS_DEFAULT_REGION=us-east-1 \
+      copilot-proxy-server
+      ```
+
+5. **Deploying to AWS**:
+    - Run `terraform apply -target=aws_ecr_repository.copilot_proxy_repo` to create the ECR repository first.
+    - Push the Docker image to ECR (follow ECR guidelines for tagging and pushing images).
+    - Run `terraform apply` to deploy the remaining resources.
+
+6. **Using the Proxy**:
+    - Access the proxy server via the domain of the created Network Load Balancer (NLB) instance.
+    - Update the `proxy_url` in your IDE settings to route requests through the proxy.
+
+## Additional Resources
+
+For more information on configuring GitHub Copilot network settings, refer to the official documentation [here](https://docs.github.com/en/copilot/managing-copilot/configure-personal-settings/configuring-network-settings-for-github-copilot?tool=vscode).
