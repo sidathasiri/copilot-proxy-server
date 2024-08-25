@@ -13,4 +13,4 @@ RUN pip install boto3
 WORKDIR /
 
 # Run mitmdump with the specified configurations
-CMD ["mitmdump", "--set", "block_global=false", "--listen-port", "8080", "-s", "/main.py"]
+CMD ["mitmdump", "--set", "block_global=false", "--proxyauth", "<username>:<password>", "--listen-port", "8080", "-s", "/main.py"]

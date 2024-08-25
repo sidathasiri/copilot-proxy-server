@@ -4,6 +4,7 @@
 
 - Create a directory called `certs` and add the certificates to be used in each run
 - Update the `queue_url` in `main.py`
+- Set the username and password placeholders (`<username>:<password>`) in the Dockerfile for the basic authentication. Ensure same values are configured in your client
 - Build the docker image with `docker build -t copilot-proxy-server --platform linux/amd64 .`
 - Run the docker image. Ensure to set the AWS credentials as env variables
 
