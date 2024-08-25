@@ -77,8 +77,8 @@ resource "aws_ecs_cluster" "copilot_proxy_cluster" {
 # Define the ECS task definition
 resource "aws_ecs_task_definition" "copilot_proxy_task" {
   family                   = "copilot_proxy_task"
-  cpu                      = "1024"
-  memory                   = "2048"
+  cpu                      = "2048"
+  memory                   = "4096"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.copilot_proxy_ecs_task_execution_role.arn
