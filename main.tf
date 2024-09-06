@@ -146,7 +146,7 @@ resource "aws_ecs_service" "copilot_proxy_service" {
   name            = "copilot-proxy-service"
   cluster         = aws_ecs_cluster.copilot_proxy_cluster.id
   task_definition = aws_ecs_task_definition.copilot_proxy_task.arn
-  desired_count   = 2
+  desired_count   = 1
   launch_type     = "FARGATE"
 
   network_configuration {
@@ -214,7 +214,7 @@ resource "aws_lb_target_group" "copilot_proxy_target_group" {
 ## ECS service auto-scaling
 resource "aws_appautoscaling_target" "copilot_proxy_scaling_target" {
   max_capacity       = 7
-  min_capacity       = 2
+  min_capacity       = 1
   resource_id        = "service/${aws_ecs_cluster.copilot_proxy_cluster.id}/${aws_ecs_service.copilot_proxy_service.name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
