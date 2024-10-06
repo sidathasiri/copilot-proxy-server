@@ -127,6 +127,38 @@ resource "aws_launch_template" "copilot_proxy" {
   user_data = base64encode(local.copilot_proxy_user_data)
 }
 
+# CloudWatch Alarm for scaling up when CPU utilization > 60%
+resource "aws_cloudwatch_metric_alarm" "cpu_high" {
+  alarm_name          = "copilot_proxy_server_cpu_high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 60
+  alarm_actions       = [aws_autoscaling_policy.scale_up.arn]
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.copilot_proxy_asg.name
+  }
+}
+
+# CloudWatch Alarm for scaling down when CPU utilization < 15%
+resource "aws_cloudwatch_metric_alarm" "cpu_low" {
+  alarm_name          = "copilot_proxy_server_cpu_low"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 15
+  alarm_actions       = [aws_autoscaling_policy.scale_down.arn]
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.copilot_proxy_asg.name
+  }
+}
+
 # Auto Scaling group
 resource "aws_autoscaling_group" "copilot_proxy_asg" {
   launch_template {
