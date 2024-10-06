@@ -1,131 +1,13 @@
 # Create an ECR repository
-resource "aws_ecr_repository" "copilot_proxy_repo" {
-  name = var.ecr_repo_name
-}
+# resource "aws_ecr_repository" "copilot_proxy_repo" {
+#   name = var.ecr_repo_name
+# }
 
-# IAM role for ECS task execution
-resource "aws_iam_role" "copilot_proxy_ecs_task_execution_role" {
-  name = "copilot_proxy_ecs_task_execution_role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [{
-      Action    = "sts:AssumeRole",
-      Effect    = "Allow",
-      Principal = {
-        Service = "ecs-tasks.amazonaws.com"
-      }
-    }]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "copilot_proxy_ecs_task_execution_role_policy" {
-  role       = aws_iam_role.copilot_proxy_ecs_task_execution_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-}
-
-# Add a custom policy for CloudWatch Logs permissions
-resource "aws_iam_policy" "copilot_proxy_cloudwatch_logs_policy" {
-  name = "copilot_proxy_cloudwatch_logs_policy"
-
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Effect = "Allow",
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ],
-        Resource = "*"
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "copilot_proxy_cloudwatch_logs_policy_attachment" {
-  role       = aws_iam_role.copilot_proxy_ecs_task_execution_role.name
-  policy_arn = aws_iam_policy.copilot_proxy_cloudwatch_logs_policy.arn
-}
-
-# IAM policy for SQS access
-resource "aws_iam_policy" "copilot_proxy_sqs_policy" {
-  name = "copilot_proxy_sqs_policy"
-
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [{
-      Effect = "Allow",
-      Action = "sqs:SendMessage",
-      Resource = aws_sqs_queue.copilot_events_queue.arn
-    }]
-  })
-}
-
-# Attach the SQS policy to the ECS task execution role
-resource "aws_iam_role_policy_attachment" "copilot_proxy_sqs_policy_attachment" {
-  role       = aws_iam_role.copilot_proxy_ecs_task_execution_role.name
-  policy_arn = aws_iam_policy.copilot_proxy_sqs_policy.arn
-}
-
-# Create an ECS cluster
-resource "aws_ecs_cluster" "copilot_proxy_cluster" {
-  name = var.ecs_cluster_name
-}
-
-# Define the ECS task definition
-resource "aws_ecs_task_definition" "copilot_proxy_task" {
-  family                   = "copilot_proxy_task"
-  cpu                      = "2048"
-  memory                   = "4096"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  execution_role_arn       = aws_iam_role.copilot_proxy_ecs_task_execution_role.arn
-  task_role_arn            = aws_iam_role.copilot_proxy_ecs_task_execution_role.arn
-  container_definitions = jsonencode([{
-    name  = "copilot_proxy_container"
-    image = "${aws_ecr_repository.copilot_proxy_repo.repository_url}:latest"
-    essential = true
-    portMappings = [{
-      name            = "8080"
-      containerPort   = 8080
-      hostPort        = 8080
-      protocol        = "tcp"
-      appProtocol     = "http"
-    }]
-    logConfiguration = {
-      logDriver = "awslogs"
-      options = {
-        awslogs-group          = "/ecs/copilot-proxy-server"
-        awslogs-region         = "us-east-1"
-        awslogs-create-group   = "true"
-        awslogs-stream-prefix  = "ecs"
-        max-buffer-size        = "25m"
-        mode                   = "non-blocking"
-      }
-    }
-    environment = [
-      {
-        name  = "SQS_QUEUE_URL"
-        value = aws_sqs_queue.copilot_events_queue.url
-      }
-    ]
-  }])
-}
-
-# Create a Security Group
-resource "aws_security_group" "copilot_proxy_sg" {
-  name   = "copilot-proxy-sg"
+# Use an existing security group or create a new one
+resource "aws_security_group" "allow_http" {
   vpc_id = var.vpc_id
 
-  ingress {
-    from_port   = 8080
-    to_port     = 8080
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
+  name          = "copilot-proxy-ec2-autoscaling-sg"
   ingress {
     from_port   = 80
     to_port     = 80
@@ -141,154 +23,173 @@ resource "aws_security_group" "copilot_proxy_sg" {
   }
 }
 
-# Create an ECS Service
-resource "aws_ecs_service" "copilot_proxy_service" {
-  name            = "copilot-proxy-service"
-  cluster         = aws_ecs_cluster.copilot_proxy_cluster.id
-  task_definition = aws_ecs_task_definition.copilot_proxy_task.arn
-  desired_count   = 1
-  launch_type     = "FARGATE"
+# Create an IAM role for EC2 instances
+resource "aws_iam_role" "ec2_instance_role" {
+  name = "copilot-proxy-ec2-role"
 
-  network_configuration {
-    subnets          = var.subnet_ids
-    security_groups  = [aws_security_group.copilot_proxy_sg.id]
-    assign_public_ip = true
-  }
-
-  load_balancer {
-    target_group_arn = aws_lb_target_group.copilot_proxy_target_group.arn
-    container_name   = "copilot_proxy_container"
-    container_port   = 8080
-  }
-
-  depends_on = [aws_lb_listener.front_end]
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        },
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
 }
 
-# Create a NLB
-resource "aws_lb" "copilot_proxy_nlb" {
-  name               = "copilot-proxy-nlb"
+# Create IAM policy to allow access to ECR and SQS
+resource "aws_iam_policy" "ec2_ecr_sqs_policy" {
+  name = "ec2-ecr-sqs-policy"
+  
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetAuthorizationToken"
+        ],
+        Resource = "*"
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "sqs:SendMessage",
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes"
+        ],
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Attach the policy to the EC2 role
+resource "aws_iam_role_policy_attachment" "attach_ecr_sqs_policy" {
+  role       = aws_iam_role.ec2_instance_role.name
+  policy_arn = aws_iam_policy.ec2_ecr_sqs_policy.arn
+}
+
+# Create an instance profile for the EC2 IAM role
+resource "aws_iam_instance_profile" "ec2_instance_profile" {
+  name = "copilot-proxy-ec2-instance-profile"
+  role = aws_iam_role.ec2_instance_role.name
+}
+
+# Define the user data script in a local variable
+locals {
+  copilot_proxy_user_data = <<-EOF
+    #!/bin/bash
+    # Update the instance
+    yum update -y
+
+    # Install Docker
+    yum install -y docker
+
+    # Start Docker service
+    service docker start
+
+    # Add the EC2 user to the docker group so you can execute Docker commands without using sudo
+    usermod -a -G docker ec2-user
+
+    # Enable Docker to start on boot
+    chkconfig docker on
+
+    # Install AWS CLI (if not already installed)
+    yum install -y aws-cli
+
+    # Log in to ECR (replace the region if necessary)
+    aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 826406658508.dkr.ecr.us-east-1.amazonaws.com
+
+    # Run the Docker container
+    docker run -d -p 80:8080 --restart=always -e AWS_DEFAULT_REGION=us-east-1 826406658508.dkr.ecr.us-east-1.amazonaws.com/copilot-proxy-repo:latest
+  EOF
+}
+
+# Launch template for EC2 instances with your user data script
+resource "aws_launch_template" "copilot_proxy" {
+  name_prefix   = "copilot-proxy"
+  image_id      = var.ami_id
+  instance_type = "t3.small" 
+
+  iam_instance_profile {
+    name = aws_iam_instance_profile.ec2_instance_profile.name
+  }
+
+  user_data = base64encode(local.copilot_proxy_user_data)
+}
+
+# Auto Scaling group
+resource "aws_autoscaling_group" "copilot_proxy_asg" {
+  launch_template {
+    id      = aws_launch_template.copilot_proxy.id
+    version = "$Latest"
+  }
+
+  name                = "copilot-proxy-asg"
+  vpc_zone_identifier = var.subnet_ids
+  min_size            = var.min_count
+  max_size            = var.max_count
+  desired_capacity    = var.desired_count
+
+  target_group_arns = [aws_lb_target_group.tcp.arn]
+}
+
+# Application Load Balancer for the Auto Scaling group
+resource "aws_lb" "copilot_proxy_lb" {
+  name               = "copilot-proxy-lb" 
   internal           = false
   load_balancer_type = "network"
-  security_groups    = [aws_security_group.copilot_proxy_sg.id]
+  security_groups    = [aws_security_group.allow_http.id]
   subnets            = var.subnet_ids
-
-  enable_deletion_protection = false
-  enable_cross_zone_load_balancing = true
-
-  tags = {
-    Name = "copilot-proxy-nlb"
-  }
 }
 
+resource "aws_lb_target_group" "tcp" {
+  name        = "copilot-proxy-targets" 
+  port        = 80
+  protocol    = "TCP"
+  vpc_id      = var.vpc_id
+  target_type = "instance"
+}
 
-# Create a Listener for the ALB
-resource "aws_lb_listener" "front_end" {
-  load_balancer_arn = aws_lb.copilot_proxy_nlb.arn
-  port              = 80
+resource "aws_lb_listener" "tcp" {
+  load_balancer_arn = aws_lb.copilot_proxy_lb.arn
+  port              = "80"
   protocol          = "TCP"
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.copilot_proxy_target_group.arn
+    target_group_arn = aws_lb_target_group.tcp.arn
   }
 }
 
-
-# Create a Target Group for the ALB
-resource "aws_lb_target_group" "copilot_proxy_target_group" {
-  name     = "copilot-proxy-tg"
-  port     = 8080
-  protocol = "TCP"
-  vpc_id   = var.vpc_id
-  target_type = "ip"
-
-  health_check {
-    protocol            = "TCP"
-    interval            = 30
-    timeout             = 5
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
-  }
+# Auto scaling policy based on CPU utilization
+resource "aws_autoscaling_policy" "scale_up" {
+  name                   = "scale_up"
+  scaling_adjustment      = 1
+  adjustment_type         = "ChangeInCapacity"
+  cooldown                = 300
+  autoscaling_group_name  = aws_autoscaling_group.copilot_proxy_asg.name
 }
 
-## ECS service auto-scaling
-resource "aws_appautoscaling_target" "copilot_proxy_scaling_target" {
-  max_capacity       = 7
-  min_capacity       = 1
-  resource_id        = "service/${aws_ecs_cluster.copilot_proxy_cluster.id}/${aws_ecs_service.copilot_proxy_service.name}"
-  scalable_dimension = "ecs:service:DesiredCount"
-  service_namespace  = "ecs"
+resource "aws_autoscaling_policy" "scale_down" {
+  name                   = "scale_down"
+  scaling_adjustment      = -1
+  adjustment_type         = "ChangeInCapacity"
+  cooldown                = 300
+  autoscaling_group_name  = aws_autoscaling_group.copilot_proxy_asg.name
 }
 
-resource "aws_appautoscaling_policy" "copilot_proxy_scaling_policy_up" {
-  name               = "copilot-proxy-scale-up"
-  scalable_dimension = aws_appautoscaling_target.copilot_proxy_scaling_target.scalable_dimension
-  resource_id        = aws_appautoscaling_target.copilot_proxy_scaling_target.resource_id
-  service_namespace  = aws_appautoscaling_target.copilot_proxy_scaling_target.service_namespace
-  policy_type        = "StepScaling"
 
-  step_scaling_policy_configuration {
-    adjustment_type         = "ChangeInCapacity"
-    cooldown                = 60
-
-    step_adjustment {
-      scaling_adjustment = 1
-      metric_interval_lower_bound = 0
-    }
-  }
-}
-
-resource "aws_appautoscaling_policy" "copilot_proxy_scaling_policy_down" {
-  name               = "copilot-proxy-scale-down"
-  scalable_dimension = aws_appautoscaling_target.copilot_proxy_scaling_target.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.copilot_proxy_scaling_target.service_namespace
-  resource_id        = aws_appautoscaling_target.copilot_proxy_scaling_target.resource_id
-  policy_type        = "StepScaling"
-
-  step_scaling_policy_configuration {
-    adjustment_type         = "ChangeInCapacity"
-    cooldown                = 60
-
-    step_adjustment {
-      scaling_adjustment = -1
-      metric_interval_upper_bound = 0
-    }
-  }
-}
-
-resource "aws_cloudwatch_metric_alarm" "copilot_proxy_high_cpu" {
-  alarm_name                = "copilot-proxy-high-cpu"
-  comparison_operator       = "GreaterThanThreshold"
-  evaluation_periods        = "2"
-  metric_name               = "CPUUtilization"
-  namespace                 = "AWS/ECS"
-  period                    = "60"
-  statistic                 = "Average"
-  threshold                 = "75"
-  alarm_actions             = [aws_appautoscaling_policy.copilot_proxy_scaling_policy_up.arn]
-  dimensions = {
-    ClusterName = aws_ecs_cluster.copilot_proxy_cluster.name
-    ServiceName = aws_ecs_service.copilot_proxy_service.name
-  }
-}
-
-resource "aws_cloudwatch_metric_alarm" "copilot_proxy_low_cpu" {
-  alarm_name                = "copilot-proxy-low-cpu"
-  comparison_operator       = "LessThanThreshold"
-  evaluation_periods        = "2"
-  metric_name               = "CPUUtilization"
-  namespace                 = "AWS/ECS"
-  period                    = "60"
-  statistic                 = "Average"
-  threshold                 = "20"
-  alarm_actions             = [aws_appautoscaling_policy.copilot_proxy_scaling_policy_down.arn]
-  dimensions = {
-    ClusterName = aws_ecs_cluster.copilot_proxy_cluster.name
-    ServiceName = aws_ecs_service.copilot_proxy_service.name
-  }
-}
-
-# Create an SQS queue
-resource "aws_sqs_queue" "copilot_events_queue" {
-  name = "copilot-events"
-}
+# # SQS Queue for sending events
+# resource "aws_sqs_queue" "queue" {
+#   name = "copilot-proxy-queue"  # Updated naming
+# }
