@@ -16,7 +16,7 @@ def send_message(message_body):
 
 def request(flow: http.HTTPFlow) -> None:
     # Filter requests to the GitHub Copilot telemetry service endpoint
-    if("copilot-telemetry-service.githubusercontent.com/telemetry" in flow.request.pretty_url):
+    if("telemetry.individual.githubcopilot.com/telemetry" in flow.request.pretty_url):
         try:
             # Parse the request body as JSON (if possible)
             request_body = flow.request.json()
