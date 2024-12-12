@@ -3,6 +3,7 @@ import json
 import boto3
 
 queue_url = "https://sqs.us-east-1.amazonaws.com/826406658508/copilot-events"
+capturing_metrics = ["copilot/ghostText.shown", "copilot/ghostText.shownFromCache", "copilot/ghostText.accepted"]
 
 def send_message(message_body):
     # Create SQS client
@@ -26,7 +27,7 @@ def request(flow: http.HTTPFlow) -> None:
             for item in request_body:
                 name = item.get("data").get("baseData").get("name")
                 # check if the name attribute present in the item and whether 
-                if(name and name == "copilot/ghostText.accepted"):
+                if(name and name in capturing_metrics):
                     machine_id = item.get("data").get("baseData").get("properties").get("client_machineid")
                     datetime = item.get("time")
                     send_message({

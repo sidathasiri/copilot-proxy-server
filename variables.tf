@@ -1,29 +1,13 @@
-variable "ecs_cluster_name" {
-  default = "copilot-proxy-cluster"
-}
-
-variable "ecs_service_name" {
-  default = "copilot-proxy-service"
-}
-
-variable "container_name" {
-  default = "copilot-proxy-container"
-}
-
 variable "ecr_repo_name" {
-  default = "copilot-proxy-repo"
-}
-
-variable "task_cpu" {
-  default = "256"
-}
-
-variable "task_memory" {
-  default = "512"
+  default = "copilot-proxy"
 }
 
 variable "desired_count" {
-  default = 2
+  default = 1
+}
+
+variable "ami_id" {
+  default = "ami-0fff1b9a61dec8a5f"
 }
 
 variable "max_count" {
@@ -31,16 +15,16 @@ variable "max_count" {
 }
 
 variable "min_count" {
-  default = 2
+  default = 1
 }
 
 variable "vpc_id" {
-  description = "The VPC ID for ECS"
+  description = "The VPC ID"
   default = "vpc-ca3604b0"
 }
 
 variable "subnet_ids" {
-  description = "List of subnet IDs for ECS"
+  description = "List of subnet IDs"
   type        = list(string)
   default     = [
     "subnet-8601b7cb",
