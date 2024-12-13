@@ -4,23 +4,26 @@ from sqs import send_message
 from configs import capturing_chat_metrics, capturing_ghost_text_metrics
 
 def process_ghost_text_events(flow: http.HTTPFlow):
-    request_body = flow.request.json()
-    for item in request_body:
-        name = item.get("data").get("baseData").get("name")
-        if(name and name in capturing_ghost_text_metrics):
-            machine_id = item.get("data").get("baseData").get("properties").get("client_machineid")
-            datetime = item.get("time")
-            print("Ghost text event name:", name)
-            send_message({
-                "machineId": machine_id,
-                "eventName": name,
-                "datetime": datetime
-            })
+    try:
+        request_body = flow.request.json()
+        for item in request_body:
+            name = item.get("data").get("baseData").get("name")
+            if(name and name in capturing_ghost_text_metrics):
+                machine_id = item.get("data").get("baseData").get("properties").get("client_machineid")
+                datetime = item.get("time")
+                print("Ghost text event name:", name)
+                send_message({
+                    "machineId": machine_id,
+                    "eventName": name,
+                    "datetime": datetime
+                })
+    except Exception as e:
+        print("Failed to parse the ghost text json payload")
 
 def process_chat_events(flow: http.HTTPFlow):
-    request_body = flow.request.content.decode('utf-8')
-    for line in request_body.strip().splitlines():
-        try:
+    try:
+        request_body = flow.request.content.decode('utf-8')
+        for line in request_body.strip().splitlines():
             json_data = json.loads(line)
             name = json_data.get("data").get("baseData").get("name")
             if(name and name in capturing_chat_metrics):
@@ -32,5 +35,5 @@ def process_chat_events(flow: http.HTTPFlow):
                 "eventName": name,
                 "datetime": datetime
                 })
-        except json.JSONDecodeError as e:
-            print(f"Failed to parse line: {line}\nError: {e}")
+    except Exception as e:
+        print("Failed to parse the chat stream payload")
