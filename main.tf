@@ -1,7 +1,7 @@
 # Create an ECR repository
-# resource "aws_ecr_repository" "copilot_proxy_repo" {
-#   name = var.ecr_repo_name
-# }
+resource "aws_ecr_repository" "copilot_proxy_repo" {
+  name = var.ecr_repo_name
+}
 
 # Use an existing security group or create a new one
 resource "aws_security_group" "allow_http" {
@@ -110,7 +110,7 @@ locals {
     aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin 039612847997.dkr.ecr.eu-central-1.amazonaws.com
 
     # Run the Docker container
-    docker run -d -p 80:8080 --restart=always -e AWS_DEFAULT_REGION=eu-central-1 039612847997.dkr.ecr.eu-central-1.amazonaws.com/copilot-proxy-repo:latest
+    docker run -d -p 80:8080 --restart=always -e AWS_DEFAULT_REGION=eu-central-1 039612847997.dkr.ecr.eu-central-1.amazonaws.com/copilot-proxy:latest
   EOF
 }
 

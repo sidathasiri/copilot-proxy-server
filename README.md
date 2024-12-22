@@ -58,7 +58,7 @@ This repository provides the following sample features:
    - Set the username and password placeholders (`<username>:<password>`) in the Dockerfile for the basic authentication. This is being used for additional security. Ensure same values are configured in the `proxy_url` in your client (ex. `http://{username}:{password}@localhost:8080`)
    - Build the Docker image with:
      ```bash
-     docker build -t copilot-proxy-repo --platform linux/amd64 .
+     docker build -t copilot-proxy --platform linux/amd64 .
      ```
      (Modify the platform parameter as needed.)
 
@@ -70,7 +70,7 @@ This repository provides the following sample features:
      -e AWS_ACCESS_KEY_ID=<your_access_key_id> \
      -e AWS_SECRET_ACCESS_KEY=<your_secret_access_key> \
      -e AWS_DEFAULT_REGION=eu-central-1 \
-     copilot-proxy-repo
+     copilot-proxy
      ```
 
 5. **Deploying to AWS**:
