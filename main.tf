@@ -222,6 +222,6 @@ resource "aws_autoscaling_policy" "scale_down" {
 
 
 # # SQS Queue for sending events
-# resource "aws_sqs_queue" "queue" {
-#   name = "copilot-proxy-queue"  # Updated naming
-# }
+resource "aws_sqs_queue" "queue" {
+  name = "copilot-proxy-queue"  # Updated naming
+}
