@@ -69,7 +69,7 @@ This repository provides the following sample features:
      docker run -it --rm -p 8080:8080 \
      -e AWS_ACCESS_KEY_ID=<your_access_key_id> \
      -e AWS_SECRET_ACCESS_KEY=<your_secret_access_key> \
-     -e AWS_DEFAULT_REGION=us-east-1 \
+     -e AWS_DEFAULT_REGION=eu-central-1 \
      copilot-proxy-repo
      ```
 
@@ -86,4 +86,4 @@ This repository provides the following sample features:
 ## Additional Resources
 
 - For more information on configuring GitHub Copilot network settings, refer to the official documentation [here](https://docs.github.com/en/copilot/managing-copilot/configure-personal-settings/configuring-network-settings-for-github-copilot?tool=vscode).
-- Read more on the official mitmproxy documentation [here](https://docs.mitmproxy.org/stable/) 
+- Read more on the official mitmproxy documentation [here](https://docs.mitmproxy.org/stable/)

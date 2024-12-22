@@ -107,10 +107,10 @@ locals {
     yum install -y aws-cli
 
     # Log in to ECR (replace the region if necessary)
-    aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 826406658508.dkr.ecr.us-east-1.amazonaws.com
+    aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin 039612847997.dkr.ecr.eu-central-1.amazonaws.com
 
     # Run the Docker container
-    docker run -d -p 80:8080 --restart=always -e AWS_DEFAULT_REGION=us-east-1 826406658508.dkr.ecr.us-east-1.amazonaws.com/copilot-proxy-repo:latest
+    docker run -d -p 80:8080 --restart=always -e AWS_DEFAULT_REGION=eu-central-1 039612847997.dkr.ecr.eu-central-1.amazonaws.com/copilot-proxy-repo:latest
   EOF
 }
 

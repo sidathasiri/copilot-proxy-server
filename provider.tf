@@ -1,11 +1,11 @@
 provider "aws" {
-  region = "us-east-1"
+  region = "eu-central-1"
 }
 
 terraform {
   backend "s3" {
-    bucket = "copilot-analyzer-tf-backend"
-    key    = "ec2-autoscaling/terraform.tfstate"
-    region = "us-east-1"
+    bucket = "copilot-usage-analyzer-tf-backend"
+    key    = "copilot-proxy-server/terraform.tfstate"
+    region = "eu-central-1"
   }
 }

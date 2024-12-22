@@ -1,4 +1,4 @@
-queue_url = "https://sqs.us-east-1.amazonaws.com/826406658508/copilot-events"
+queue_url = "https://sqs.eu-central-1.amazonaws.com/039612847997/copilot-proxy-queue"
 
 # Metrics
 capturing_ghost_text_metrics = ["copilot/ghostText.shown", "copilot/ghostText.shownFromCache", "copilot/ghostText.accepted"]
