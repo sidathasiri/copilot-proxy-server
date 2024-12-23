@@ -7,7 +7,7 @@ variable "desired_count" {
 }
 
 variable "ami_id" {
-  default = "ami-0fff1b9a61dec8a5f"
+  default = "ami-0e54671bdf3c8ed8d"
 }
 
 variable "max_count" {
@@ -20,15 +20,15 @@ variable "min_count" {
 
 variable "vpc_id" {
   description = "The VPC ID"
-  default = "vpc-ca3604b0"
+  default = "vpc-0689fd46700c51c41"
 }
 
 variable "subnet_ids" {
   description = "List of subnet IDs"
   type        = list(string)
   default     = [
-    "subnet-8601b7cb",
-    "subnet-7a4fac25",
-    "subnet-84f214e2"
+    "subnet-090ea8b99e9962796",
+    "subnet-00f79aeba15fb6e24",
+    "subnet-04cbee6d70234bca1"
   ]
 }
