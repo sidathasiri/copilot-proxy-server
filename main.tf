@@ -7,7 +7,7 @@ resource "aws_ecr_repository" "copilot_proxy_repo" {
 resource "aws_security_group" "allow_http" {
   vpc_id = var.vpc_id
 
-  name          = "copilot-proxy-ec2-autoscaling-sg"
+  name          = "copilot-proxy-http-sg"
   ingress {
     from_port   = 80
     to_port     = 80
@@ -124,6 +124,8 @@ resource "aws_launch_template" "copilot_proxy" {
     name = aws_iam_instance_profile.ec2_instance_profile.name
   }
 
+  vpc_security_group_ids = [aws_security_group.allow_http.id]
+
   user_data = base64encode(local.copilot_proxy_user_data)
 }
 
@@ -223,5 +225,5 @@ resource "aws_autoscaling_policy" "scale_down" {
 
 # # SQS Queue for sending events
 resource "aws_sqs_queue" "queue" {
-  name = "copilot-proxy-queue"  # Updated naming
+  name = "copilot-proxy-queue"
 }
